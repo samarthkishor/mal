@@ -1,0 +1,6 @@
+EXCLUDE_QUERY_DIR
+B /Users/samarth/.esy/3_________________________________________________________________/i/ocaml-4.7.1004-e5a2754f/lib/ocaml
+B /Users/samarth/Projects/mal/impls/reasonml/_esy/default/store/b/mal-f961540b/default/step1_read_print/.step1_read_print.eobjs/byte
+S /Users/samarth/.esy/3_________________________________________________________________/i/ocaml-4.7.1004-e5a2754f/lib/ocaml
+S .
+FLG -w -40
