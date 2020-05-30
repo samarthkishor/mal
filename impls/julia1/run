@@ -1,0 +1,3 @@
+#!/bin/bash
+
+exec julia $(dirname $0)/${STEP:-stepA_mal}.jl "${@}"
