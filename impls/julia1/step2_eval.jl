@@ -46,10 +46,10 @@ end
 
 function rep(str::String)
     repl_env = Dict(
-        "+" => (a, b)->a + b,
-        "-" => (a, b)->a - b,
-        "*" => (a, b)->a * b,
-        "/" => (a, b)->a / b,
+        "+" => +,
+        "-" => -,
+        "*" => *,
+        "/" => /
     )
     PRINT(EVAL(READ(str), repl_env))
 end
