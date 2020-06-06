@@ -5,6 +5,26 @@ struct MalEnv
     data::Dict{Symbol,Any}
 end
 
+function MalEnv(::Any)
+    MalEnv(nothing, Dict())
+end
+
+function MalEnv(outer::Any)
+    MalEnv(outer, Dict())
+end
+
+function MalEnv(outer::Any, binds::Array, exprs::Array)
+    env = MalEnv(outer)
+    init!(env, binds, exprs)
+    env
+end
+
+function init!(env::MalEnv, binds::Array, exprs::Array)
+    for (binding, expr) in zip(binds, exprs)
+        set!(env, binding, expr)
+    end
+end
+
 "Adds a mapping from symbol `key` => `value` to the environment `env`."
 function set!(env::MalEnv, key::Symbol, value::Any)
     env.data[key] = value

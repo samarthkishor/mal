@@ -16,7 +16,11 @@ function pr_str(data::Bool)::String
     string(data)
 end
 
-function pr_str(lst::Array{Any})::String
+function pr_str(fn::Function)::String
+    "#<function>"
+end
+
+function pr_str(lst::Array)::String
     "($(join([pr_str(data) for data in lst], " ")))"
 end
 
