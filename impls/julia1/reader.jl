@@ -50,13 +50,15 @@ function read_list!(reader::MalReader)::Array{Any}
 end
 
 "Reads a Mal atom into a Julia type."
-function read_atom!(reader::MalReader)::Union{Nothing,Int,Float64,Bool,Symbol}
+function read_atom!(reader::MalReader)::Union{Nothing,Int,Float64,Bool,String,Symbol}
     token = peek(reader)
     next!(reader)
     if tryparse(Int, token) !== nothing
         parse(Int, token)
     elseif tryparse(Float64, token) !== nothing
         parse(Float64, token)
+    elseif match(r"^\"(?:\\.|[^\\\"])*\"$", token) !== nothing
+        unescape_string(token[2:end - 1])
     elseif token == "true"
         true
     elseif token == "false"

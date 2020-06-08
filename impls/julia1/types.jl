@@ -2,9 +2,13 @@ module Types
 
 struct MalFunction
     params::Array
-    body::Array
+    body
     env  # TODO figure out how to type this
     fn::Function
+end
+
+mutable struct MalAtom
+    value::Any
 end
 
 end
