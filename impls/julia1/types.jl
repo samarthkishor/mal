@@ -8,7 +8,7 @@ struct MalFunction
 end
 
 mutable struct MalAtom
-    value::Any
+    value
 end
 
 end

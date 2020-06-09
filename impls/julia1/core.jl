@@ -28,8 +28,20 @@ function is_atom(::Any)
     false
 end
 
+function atom(value::T) where T <: Union{Bool,Int,Float64}
+    Threads.Atomic{T}(value)
+end
+
+function atom(value::Any)
+    MalAtom(value)
+end
+
 function deref(atom::MalAtom)
     atom.value
+end
+
+function deref(atom::Threads.Atomic)
+    atom[]
 end
 
 function deref(var::Any)
@@ -38,6 +50,17 @@ end
 
 function reset_atom!(atom::MalAtom, value::Any)
     atom.value = value
+end
+
+function reset_atom!(atom::Threads.Atomic{T}, value::T) where T <: Union{Bool,Int,Float64}
+    Threads.atomic_xchg!(atom, value)
+    value
+end
+
+function reset_atom!(::Threads.Atomic{T}, ::Any) where T <: Union{Bool,Int,Float64}
+    # TODO change this to modify the atom by reference since Mal is dynamically typed
+    # and technically should be able to reset primitive atoms to non-primitives
+    error("Cannot reset a primitive atom (bool, int, float) to a non-primitive value.")
 end
 
 function reset_atom!(var::Any, ::Any)
@@ -55,6 +78,18 @@ function swap!(atom::MalAtom, f, args...)
     catch
         error("Value $(Printer.pr_str(f)) is not a function.")
     end
+end
+
+function swap!(atom::Threads.Atomic{T}, f::Function, args...) where T <: Union{Bool,Int,Float64}
+    value = f(atom[], args...)
+    Threads.atomic_xchg!(atom, value)
+    value
+end
+
+function swap!(atom::Threads.Atomic{T}, f, args...) where T <: Union{Bool,Int,Float64}
+    value = f.fn(atom[], args...)
+    Threads.atomic_xchg!(atom, value)
+    value
 end
 
 function swap!(var::Any, ::Any, ::Any)
@@ -78,7 +113,7 @@ ns = Dict{Symbol,Function}(
     :prn => prn,
     :str => (strings...)->join([Printer.pr_str(str, false) for str in strings], ""),
     :slurp => filename->read(filename, String),
-    :atom => value->MalAtom(value),
+    :atom => value->atom(value),
     :deref => value->deref(value),
     :list => list,
     :count => length,

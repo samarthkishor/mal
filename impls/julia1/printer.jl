@@ -24,6 +24,10 @@ function pr_str(::Function, readable = true)::String
     "#<function>"
 end
 
+function pr_str(atom::Threads.Atomic, readable = true)::String
+    "(atom $(pr_str(atom[])))"
+end
+
 function pr_str(lst::Array, readable = true)::String
     "($(join([pr_str(data) for data in lst], " ")))"
 end
