@@ -20,7 +20,7 @@ function is_list(::Any)
     false
 end
 
-function is_atom(::MalAtom)
+function is_atom(::Union{MalAtom,Threads.Atomic})
     true
 end
 
