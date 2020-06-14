@@ -24,6 +24,10 @@ function eval_ast(ast::Array, env::MalEnv)::Any
     [EVAL(a, env) for a in ast]
 end
 
+function eval_ast(ast::Reader.Types.MalVector, env::MalEnv)::Any
+    Reader.Types.MalVector([EVAL(a, env) for a in ast.vec])
+end
+
 function eval_ast(ast, ::MalEnv)::Any
     ast
 end

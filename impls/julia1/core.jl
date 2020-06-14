@@ -12,6 +12,10 @@ function list(args...)
     Any[args...]
 end
 
+function vector(args...)
+    Reader.Types.MalVector(list(args...))
+end
+
 function is_list(::Array)
     true
 end
@@ -155,6 +159,7 @@ ns = Dict{Symbol,Function}(
     :atom => atom,
     :deref => deref,
     :list => list,
+    :vector => vector,
     :count => length,
     :cons => cons,
     :concat => concat,
