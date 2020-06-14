@@ -1,7 +1,5 @@
 #!/usr/bin/env julia
 
-using Match
-
 include("reader.jl")
 include("printer.jl")
 
@@ -35,7 +33,9 @@ function EVAL(ast, env::Dict{String,Function})
     elseif ast == []
         ast
     else
-        @match(eval_ast(ast, env), [f, args...])
+        evaled_ast = eval_ast(ast, env)
+        f = evaled_ast[1]
+        args = evaled_ast[2:end]
         f(args...)
     end
 end
