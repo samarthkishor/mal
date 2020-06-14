@@ -10,7 +10,7 @@ using .Reader
 using .Printer
 using .Env: MalEnv
 using .MalCore
-using .Types: MalFunction, MalAtom
+using .Types: MalFunction, MalAtom, MalVector
 
 function READ(str::String)
     Reader.read_str(str)
@@ -87,19 +87,23 @@ function is_pair(lst::Array)
     length(lst) > 0
 end
 
+function is_pair(lst::Reader.Types.MalVector)
+    length(lst.vec) > 0
+end
+
 function is_pair(::Any)
     false
 end
 
 function quasiquote(ast)
     if !is_pair(ast)
-        [[:quote]; [ast]]
+        [:quote, ast]
     elseif ast[1] === :unquote
         ast[2]
     elseif is_pair(ast[1]) && ast[1][1] === Symbol("splice-unquote")
-        [[:concat]; [ast[1][2]]; [quasiquote(ast[2:end])]]
+        [:concat, ast[1][2], quasiquote(ast[2:end])]
     else
-        [[:cons]; [quasiquote(ast[1])]; [quasiquote(ast[2:end])]]
+        [:cons, quasiquote(ast[1]), quasiquote(ast[2:end])]
     end
 end
 
@@ -178,6 +182,10 @@ end
 
 function PRINT(a::MalCore.Types.MalAtom)
     "(atom $(Printer.pr_str(a.value)))"
+end
+
+function PRINT(vector::Reader.Types.MalVector)
+    "[$(join([PRINT(data) for data in vector.vec], " "))]"
 end
 
 function PRINT(expression)

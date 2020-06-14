@@ -1,5 +1,8 @@
 module Printer
 
+include("reader.jl")
+using .Reader
+
 function pr_str(data::Nothing, readable = true)::String
     "nil"
 end
@@ -30,6 +33,19 @@ end
 
 function pr_str(lst::Array, readable = true)::String
     "($(join([pr_str(data) for data in lst], " ")))"
+end
+
+# TODO get this to work... Julia includes are really weird
+function pr_str(vector::Reader.Types.MalVector, readable = true)::String
+    "[$(join([pr_str(data) for data in vector.vec], " "))]"
+end
+
+function pr_str(data::Any, readable = true)
+    if hasproperty(data, :vec)
+        "[$(join([pr_str(d) for d in data.vec], " "))]"
+    else
+        error("Cannot print value $(data) that has Julia type of $(typeof(data))")
+    end
 end
 
 end

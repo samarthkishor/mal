@@ -1,6 +1,8 @@
 module Reader
 
-using Match
+include("types.jl")
+
+using .Types: MalVector
 
 mutable struct MalReader
     tokens::Array{String}
@@ -32,16 +34,16 @@ function tokenize(str::String)
 end
 
 "Reads a Mal list into a Julia array."
-function read_list!(reader::MalReader)::Array{Any}
-    @assert peek(reader) == "("
+function read_list!(reader::MalReader, first::String, last::String)::Array{Any}
+    @assert peek(reader) == first
     if next!(reader) === nothing
-        error("Expected \")\", got EOF")
+        error("Expected \"$(last)\", got EOF")
     end
 
     lst = []
-    while (token = peek(reader)) != ")"
+    while (token = peek(reader)) != last
         if token === nothing
-            error("Expected \")\", got EOF")
+            error("Expected \"$(last)\", got EOF")
         end
         push!(lst, read_form(reader))
     end
@@ -72,9 +74,25 @@ end
 
 "Reads the appropriate Mal form based on the current token."
 function read_form(reader::MalReader)
-    @match peek(reader) begin
-        "(" => read_list!(reader)
-        _ => read_atom!(reader)
+    token = peek(reader)
+    if token == "("
+        read_list!(reader, "(", ")")
+    elseif token == "["
+        MalVector(read_list!(reader, "[", "]"))
+    elseif token == "'"
+        next!(reader)
+        [:quote, read_form(reader)]
+    elseif token == "`"
+        next!(reader)
+        [:quasiquote, read_form(reader)]
+    elseif token == "~"
+        next!(reader)
+        [:unquote, read_form(reader)]
+    elseif token == "~@"
+        next!(reader)
+        [Symbol("splice-unquote"), read_form(reader)]
+    else
+        read_atom!(reader)
     end
 end
 

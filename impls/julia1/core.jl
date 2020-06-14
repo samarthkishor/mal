@@ -6,7 +6,7 @@ include("types.jl")
 
 using .Printer
 using .Reader
-using .Types: MalAtom, MalFunction
+using .Types: MalAtom, MalFunction, MalVector
 
 function list(args...)
     Any[args...]
@@ -101,6 +101,45 @@ function length(nothing)
     0
 end
 
+function cons(x, lst::Array)
+    [x, lst...]
+end
+
+function cons(x, lst)
+    if hasproperty(lst, :vec)
+        cons(x, lst.vec)
+    else
+        error("Cannot cons value $(x) to list $(lst) of Julia type $(typeof(lst))")
+    end
+end
+
+# function cons(x, lst)
+#     error("Cannot cons value $(x) to list $(lst) of Julia type $(typeof(lst))")
+# end
+
+function concat(a::Array, b::Array)
+    vcat(a, b)
+end
+
+function concat(a, b)
+    if hasproperty(a, :vec) && hasproperty(b, :vec)
+        vcat(a.vec, b.vec)
+    elseif hasproperty(a, :vec)
+        vcat(a.vec, b)
+    elseif hasproperty(b, :vec)
+        vcat(a, b.vec)
+    else
+        error("Cannot concatenate list of type $(typeof(a)) and list of type $(typeof(b))")
+    end
+end
+
+"""
+Concatenate lists or vectors, always returning a list.
+"""
+function concat(lsts...)
+    reduce(concat, lsts, init = [])
+end
+
 function prn(str)
     println(Printer.pr_str(str))
 end
@@ -117,8 +156,8 @@ ns = Dict{Symbol,Function}(
     :deref => deref,
     :list => list,
     :count => length,
-    :cons => (x, lst)->[x, lst...],
-    :concat => vcat,
+    :cons => cons,
+    :concat => concat,
     Symbol("atom?") => is_atom,
     Symbol("reset!") => (atom, value)->reset_atom!(atom, value),
     Symbol("swap!") => (atom, f, args...)->swap!(atom, f, args...),
