@@ -32,9 +32,6 @@ function init!(env::MalEnv, binds::Array, exprs::Array)
             if i == length(binds)
                 error("Need a parameter after `&`.")
             end
-            println("INFO")
-            println(binds)
-            println(exprs)
 
             set!(env, binds[i + 1], exprs[i:end])
             return
