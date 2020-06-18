@@ -1,10 +1,12 @@
 module Types
 
-struct MalFunction
+mutable struct MalFunction
     params::Array
     body
     env  # TODO figure out how to type this
     fn::Function
+    is_macro::Bool
+    MalFunction(params::Array, body, env, fn::Function) = new(params, body, env, fn, false)
 end
 
 mutable struct MalAtom

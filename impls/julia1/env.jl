@@ -15,12 +15,31 @@ end
 
 function MalEnv(outer::Any, binds::Array, exprs::Array)
     env = MalEnv(outer)
-    init!(env, binds, exprs)
+    if binds != [] && exprs == []
+        # handle the case where there are no arguments to a function
+        # with variadic parameters
+        set!(env, binds[end], Any[])
+    else
+        init!(env, binds, exprs)
+    end
     env
 end
 
 function init!(env::MalEnv, binds::Array, exprs::Array)
-    for (binding, expr) in zip(binds, exprs)
+    for (i, (binding, expr)) in enumerate(zip(binds, exprs))
+        # handle variadic function parameters (e.g. `(fn* (& xs) ...`)
+        if binding === :&
+            if i == length(binds)
+                error("Need a parameter after `&`.")
+            end
+            println("INFO")
+            println(binds)
+            println(exprs)
+
+            set!(env, binds[i + 1], exprs[i:end])
+            return
+        end
+
         set!(env, binding, expr)
     end
 end

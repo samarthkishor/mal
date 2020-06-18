@@ -8,6 +8,18 @@ using .Printer
 using .Reader
 using .Types: MalAtom, MalFunction, MalVector
 
+function not(bool::Bool)
+    !bool
+end
+
+function not(::Any)
+    error("Type of argument to function `not` must be a bool.")
+end
+
+function not(args...)
+    error("Too many arguments to function `not`")
+end
+
 function list(args...)
     Any[args...]
 end
@@ -22,6 +34,58 @@ end
 
 function is_list(::Any)
     false
+end
+
+function first(::Nothing)
+    nothing
+end
+
+function first(lst::Array)
+    lst == [] ? nothing : lst[1]
+end
+
+function first(lst)
+    lst.vec == [] ? nothing : lst.vec[1]
+end
+
+function first(_...)
+    error("Type of argument to function `first` must be a sequence.")
+end
+
+function rest(::Nothing)
+    Any[]
+end
+
+function rest(lst::Array)
+    lst[2:end]
+end
+
+function rest(lst)
+    lst.vec[2:end]
+end
+
+function rest(_...)
+    error("Type of argument to function `rest` must be a sequence.")
+end
+
+function nth(lst::Array, i::Int)
+    if i < length(lst)
+        lst[i + 1]
+    else
+        error("Out of bounds access to sequence $(lst) with length $(length(lst)) at index $(i)).")
+    end
+end
+
+function nth(lst, i::Int)
+    if i < length(lst.vec)
+        lst.vec[i + 1]
+    else
+        error("Out of bounds access to sequence $(lst.vec) with length $(length(lst.vec)) at index $(i)).")
+    end
+end
+
+function nth(_...)
+    error("Types of arguments to function `nth` must be a sequence and an integer.")
 end
 
 function is_atom(::Union{MalAtom,Threads.Atomic})
@@ -106,7 +170,7 @@ function length(nothing)
 end
 
 function cons(x, lst::Array)
-    [x, lst...]
+    Any[x, lst...]
 end
 
 function cons(x, lst)
@@ -153,6 +217,8 @@ ns = Dict{Symbol,Function}(
     :- => -,
     :* => *,
     :/ => /,
+    :not => not,
+    :throw => error,
     :prn => prn,
     :str => (strings...)->join([Printer.pr_str(str, false) for str in strings], ""),
     :slurp => filename->read(filename, String),
@@ -163,6 +229,9 @@ ns = Dict{Symbol,Function}(
     :count => length,
     :cons => cons,
     :concat => concat,
+    :first => first,
+    :rest => rest,
+    :nth => nth,
     Symbol("atom?") => is_atom,
     Symbol("reset!") => (atom, value)->reset_atom!(atom, value),
     Symbol("swap!") => (atom, f, args...)->swap!(atom, f, args...),
