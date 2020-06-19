@@ -8,6 +8,10 @@ using .Printer
 using .Reader
 using .Types: MalAtom, MalFunction, MalVector
 
+struct MalException <: Exception
+    value::Any
+end
+
 function not(bool::Bool)
     !bool
 end
@@ -177,13 +181,9 @@ function cons(x, lst)
     if hasproperty(lst, :vec)
         cons(x, lst.vec)
     else
-        error("Cannot cons value $(x) to list $(lst) of Julia type $(typeof(lst))")
+        error("Cannot cons value $(x) to value $(lst) of Julia type $(typeof(lst))")
     end
 end
-
-# function cons(x, lst)
-#     error("Cannot cons value $(x) to list $(lst) of Julia type $(typeof(lst))")
-# end
 
 function concat(a::Array, b::Array)
     vcat(a, b)
@@ -205,11 +205,56 @@ end
 Concatenate lists or vectors, always returning a list.
 """
 function concat(lsts...)
-    reduce(concat, lsts, init = [])
+    reduce(concat, lsts, init = Any[])
+end
+
+"""
+The first argument is a function and the last argument is list (or vector).
+The arguments between the function and the last argument (if there are any)
+are concatenated with the final argument to create the arguments that are
+used to call the function. The apply function allows a function to be called
+with arguments that are contained in a list (or vector). In other words,
+`(apply F A B [C D])` is equivalent to `(F A B C D)`.
+"""
+function apply(f, args...)
+    args = if hasproperty(args, :vec)
+        Any[Any[args.vec[1:end - 1]...]; args.vec[end]]
+    else
+        Any[Any[args[1:end - 1]...]; args[end]]
+    end
+
+    if hasproperty(f, :fn)
+        f.fn(args...)
+    elseif f isa Function
+        f(args...)
+    else
+        error("First argument to `apply` must be a function.")
+    end
+end
+
+"""
+Takes a function and a list (or vector) and evaluates the function against
+every element of the list (or vector) one at a time and returns the results
+as a list.
+"""
+function mal_map(f, lst)
+    if hasproperty(f, :fn) && hasproperty(lst, :vec)
+        map(f.fn, lst.vec)
+    elseif hasproperty(f, :fn) && !hasproperty(lst, :vec)
+        map(f.fn, lst)
+    elseif !hasproperty(f, :fn) && hasproperty(lst, :vec)
+        map(f, lst.vec)
+    else
+        map(f, lst)
+    end
 end
 
 function prn(str)
     println(Printer.pr_str(str))
+end
+
+function prn(strs...)
+    println(join([Printer.pr_str(str) for str in Any[strs...]], " "))
 end
 
 ns = Dict{Symbol,Function}(
@@ -218,7 +263,7 @@ ns = Dict{Symbol,Function}(
     :* => *,
     :/ => /,
     :not => not,
-    :throw => error,
+    :throw => value->throw(MalException(value)),
     :prn => prn,
     :str => (strings...)->join([Printer.pr_str(str, false) for str in strings], ""),
     :slurp => filename->read(filename, String),
@@ -232,11 +277,17 @@ ns = Dict{Symbol,Function}(
     :first => first,
     :rest => rest,
     :nth => nth,
+    :apply => apply,
+    :map => mal_map,
     Symbol("atom?") => is_atom,
     Symbol("reset!") => (atom, value)->reset_atom!(atom, value),
     Symbol("swap!") => (atom, f, args...)->swap!(atom, f, args...),
     Symbol("list?") => is_list,
     Symbol("empty?") => isempty,
+    Symbol("nil?") => value->(value === nothing),
+    Symbol("true?") => value->(value === true),
+    Symbol("false?") => value->(value === false),
+    Symbol("symbol?") => value->(value isa Symbol),
     Symbol("=") => ==,
     Symbol("<") => <,
     Symbol(">") => >,

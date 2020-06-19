@@ -70,7 +70,7 @@ If no key is found up the outer chain, then throws a "not found" error.
 function get_value(env::MalEnv, key::Symbol)::Union{Any,ErrorException}
     environment = find(env, key)
     if environment === nothing
-        error("Symbol $(key) not found in the environment")
+        error("\'$(key)\' not found")
     end
     environment.data[key]
 end
