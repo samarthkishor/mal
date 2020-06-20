@@ -2,7 +2,7 @@ module Reader
 
 include("types.jl")
 
-using .Types: MalVector
+using .Types: MalVector, keyword
 
 mutable struct MalReader
     tokens::Array{String}
@@ -33,7 +33,7 @@ function tokenize(str::String)
     filter(m->m != "", [strip(m.captures[1]) for m in matches])
 end
 
-"Reads a Mal list into a Julia array."
+"Reads a Mal list or vector into a Julia array."
 function read_list!(reader::MalReader, first::String, last::String)::Array{Any}
     @assert peek(reader) == first
     if next!(reader) === nothing
@@ -51,6 +51,21 @@ function read_list!(reader::MalReader, first::String, last::String)::Array{Any}
     lst
 end
 
+"Reads a Mal hashmap into a Julia dict."
+function read_hashmap!(reader::MalReader)::Dict
+    lst = read_list!(reader, "{", "}")
+    if isodd(length(lst))
+        error("Incorrect hashmap structure.")
+    end
+
+    keys = [key for (i, key) in enumerate(lst) if isodd(i)]
+    if !all(key->(key isa Symbol || key isa String), keys)
+        error("Hashmap key must either be a string or symbol.")
+    end
+    values = [value for (i, value) in enumerate(lst) if iseven(i)]
+    Dict(zip(keys, values))
+end
+
 "Reads a Mal atom into a Julia type."
 function read_atom!(reader::MalReader)::Union{Nothing,Int,Float64,Bool,String,Symbol}
     token = peek(reader)
@@ -61,6 +76,11 @@ function read_atom!(reader::MalReader)::Union{Nothing,Int,Float64,Bool,String,Sy
         parse(Float64, token)
     elseif match(r"^\"(?:\\.|[^\\\"])*\"$", token) !== nothing
         unescape_string(token[2:end - 1])
+    elseif token[1] == ':'
+        if length(token) == 1
+            error("Keyword must have at least one character.")
+        end
+        keyword(token[2:end])
     elseif token == "true"
         true
     elseif token == "false"
@@ -79,6 +99,8 @@ function read_form(reader::MalReader)
         read_list!(reader, "(", ")")
     elseif token == "["
         MalVector(read_list!(reader, "[", "]"))
+    elseif token == "{"
+        read_hashmap!(reader)
     elseif token == "'"
         next!(reader)
         [:quote, read_form(reader)]
@@ -91,6 +113,9 @@ function read_form(reader::MalReader)
     elseif token == "~@"
         next!(reader)
         [Symbol("splice-unquote"), read_form(reader)]
+    elseif token[1] == ';'
+        next!(reader)
+        nothing
     else
         read_atom!(reader)
     end

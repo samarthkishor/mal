@@ -26,6 +26,17 @@ function MalEnv(outer::Any, binds::Array, exprs::Array)
 end
 
 function init!(env::MalEnv, binds::Array, exprs::Array)
+    if length(binds) > length(exprs)
+        for (i, bind) in enumerate(binds)
+            if bind === :&
+                # handle the case for `((fn* (a & xs) ...) 1)`, xs should be `[]`
+                # need this because `zip([:a, :&, :xs], [1])` is just `[(:a, 1)]`
+                set!(env, binds[i + 1], [])
+                return
+            end
+        end
+    end
+
     for (i, (binding, expr)) in enumerate(zip(binds, exprs))
         # handle variadic function parameters (e.g. `(fn* (& xs) ...`)
         if binding === :&

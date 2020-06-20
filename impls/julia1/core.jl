@@ -6,10 +6,18 @@ include("types.jl")
 
 using .Printer
 using .Reader
-using .Types: MalAtom, MalFunction, MalVector
+using .Types: MalAtom, MalFunction, MalVector, keyword
 
 struct MalException <: Exception
     value::Any
+end
+
+function is_keyword(str::String)
+    str != "" && str[1] == '\U029E'
+end
+
+function is_keyword(::Any)
+    false
 end
 
 function not(bool::Bool)
@@ -32,12 +40,25 @@ function vector(args...)
     Reader.Types.MalVector(list(args...))
 end
 
+function hash_map(args...)
+    keys = [key for (i, key) in enumerate(args) if isodd(i)]
+    if !all(key->(key isa Symbol || key isa String), keys)
+        error("Hashmap key must either be a string, symbol, or keyword.")
+    end
+    values = [value for (i, value) in enumerate(args) if iseven(i)]
+    Dict(zip(keys, values))
+end
+
 function is_list(::Array)
     true
 end
 
 function is_list(::Any)
     false
+end
+
+function is_vector(lst)
+    hasproperty(lst, :vec)
 end
 
 function first(::Nothing)
@@ -205,7 +226,7 @@ end
 Concatenate lists or vectors, always returning a list.
 """
 function concat(lsts...)
-    reduce(concat, lsts, init = Any[])
+    reduce(concat, lsts, init=Any[])
 end
 
 """
@@ -217,16 +238,19 @@ with arguments that are contained in a list (or vector). In other words,
 `(apply F A B [C D])` is equivalent to `(F A B C D)`.
 """
 function apply(f, args...)
-    args = if hasproperty(args, :vec)
-        Any[Any[args.vec[1:end - 1]...]; args.vec[end]]
-    else
-        Any[Any[args[1:end - 1]...]; args[end]]
+    new_args = map(args) do arg
+        if hasproperty(arg, :vec)
+            arg.vec
+        else
+            arg
+        end
     end
+    new_args = Any[Any[new_args[1:end - 1]...]; new_args[end]]
 
     if hasproperty(f, :fn)
-        f.fn(args...)
+        f.fn(new_args...)
     elseif f isa Function
-        f(args...)
+        f(new_args...)
     else
         error("First argument to `apply` must be a function.")
     end
@@ -249,12 +273,43 @@ function mal_map(f, lst)
     end
 end
 
+import Base.get
+function get(::Nothing, ::Any, ::Any)
+    nothing
+end
+
+"""
+Takes a hash-map as the first argument and the remaining arguments are
+odd/even key/value pairs to "associate" (merge) into the hash-map.
+"""
+function assoc(map::Dict, args...)
+    merge(map, hash_map(args...))
+end
+
+"""
+Takes a hash-map and a list of keys to remove from the hash-map. Again, note
+that the original hash-map is unchanged and a new hash-map with the keys
+removed is returned. Key arguments that do not exist in the hash-map are
+ignored.
+"""
+function dissoc(map::Dict, remove_keys...)
+    new_keys = [key for key in keys(map) if !(key in remove_keys)]
+    Dict([(key, map[key]) for key in new_keys])
+end
+
 function prn(str)
     println(Printer.pr_str(str))
 end
 
 function prn(strs...)
     println(join([Printer.pr_str(str) for str in Any[strs...]], " "))
+end
+
+"""
+Calls `pr_str` with the `readable` argument on every string and joins them with `sep`.
+"""
+function str(sep::String, readable::Bool, strs...)
+    join([Printer.pr_str(str, readable) for str in strs], sep)
 end
 
 ns = Dict{Symbol,Function}(
@@ -265,8 +320,10 @@ ns = Dict{Symbol,Function}(
     :not => not,
     :throw => value->throw(MalException(value)),
     :prn => prn,
-    :str => (strings...)->join([Printer.pr_str(str, false) for str in strings], ""),
+    :str => (strs...)->str("", false, strs...),
     :slurp => filename->read(filename, String),
+    :symbol => x->Symbol(x),
+    :keyword => keyword,
     :atom => atom,
     :deref => deref,
     :list => list,
@@ -279,21 +336,33 @@ ns = Dict{Symbol,Function}(
     :nth => nth,
     :apply => apply,
     :map => mal_map,
+    :assoc => assoc,
+    :dissoc => dissoc,
+    :get => (map, key)->get(map, key, nothing),
+    :keys => map->collect(keys(map)),
+    :vals => map->collect(values(map)),
     Symbol("atom?") => is_atom,
     Symbol("reset!") => (atom, value)->reset_atom!(atom, value),
     Symbol("swap!") => (atom, f, args...)->swap!(atom, f, args...),
+    Symbol("hash-map") => hash_map,
     Symbol("list?") => is_list,
+    Symbol("vector?") => is_vector,
+    Symbol("sequential?") => lst->(is_list(lst) || is_vector(lst)),
+    Symbol("map?") => map->(map isa Dict),
+    Symbol("contains?") => (map, key)->haskey(map, key),
     Symbol("empty?") => isempty,
     Symbol("nil?") => value->(value === nothing),
     Symbol("true?") => value->(value === true),
     Symbol("false?") => value->(value === false),
     Symbol("symbol?") => value->(value isa Symbol),
+    Symbol("keyword?") => is_keyword,
     Symbol("=") => ==,
     Symbol("<") => <,
     Symbol(">") => >,
     Symbol("<=") => <=,
     Symbol(">=") => >=,
     Symbol("read-string") => Reader.read_str,
+    Symbol("pr-str") => (strs...)->str(" ", true, strs...),
 )
 
 end
